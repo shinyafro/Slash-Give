@@ -28,6 +28,9 @@ public class Give implements CommandExecutor {
         if (!Sponge.getRegistry().getType(ItemType.class, itemName).isPresent()){
             throw new CommandException(Text.of("Invalid item"));
         }
+        if (quantity > 64 && !src.hasPermission("slashgive.extra")){
+            throw new CommandPermissionException(Text.of("You don't have permission to give more then 64."));
+        }
 
         ItemStack item = ItemStack.builder()
                 .itemType(Sponge.getRegistry().getType(ItemType.class, itemName).get())
