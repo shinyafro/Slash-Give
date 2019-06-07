@@ -16,7 +16,7 @@ import org.spongepowered.api.text.Text;
 public class Give implements CommandExecutor {
     @Override
     public CommandResult execute(CommandSource src, CommandContext args) throws CommandException {
-        CommandSource target = args.<CommandSource>getOne("target").get();
+        Player target = args.<Player>getOne("target").get();
         String itemName = args.<String>getOne("item").get();
         Integer quantity = args.<Integer>getOne("quantity").orElse(1);
         Integer meta = args.<Integer>getOne("meta").orElse(0);
@@ -39,7 +39,7 @@ public class Give implements CommandExecutor {
                 .fromContainer(item.toContainer().set(DataQuery.of("UnsafeDamage"),meta))
                 .build();
 
-        ((Player)target).getInventory().offer(item);
+        target.getInventory().offer(item);
         return CommandResult.success();
     }
 }
