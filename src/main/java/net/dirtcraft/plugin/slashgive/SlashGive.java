@@ -25,13 +25,13 @@ public class SlashGive {
     @Listener (order = Order.FIRST)
     public void onConstructionEvent(GameConstructionEvent event) {
         CommandSpec give = CommandSpec.builder()
-                .permission("slashgive.exempt")
+                .permission(Permissions.GIVE_MAIN)
                 .arguments(
                         GenericArguments.playerOrSource(Text.of("target")),
                         GenericArguments.string(Text.of("item")),
                         GenericArguments.optional(GenericArguments.integer(Text.of("quantity"))),
-                        GenericArguments.optional(GenericArguments.integer(Text.of("meta")))
-                        //GenericArguments.optional(GenericArguments.requiringPermission(GenericArguments.string(Text.of("nbt")),"slashgive.nbt"))
+                        GenericArguments.optional(GenericArguments.integer(Text.of("meta"))),
+                        GenericArguments.optional(GenericArguments.remainingJoinedStrings(Text.of("nbt")))
                 )
                 .executor(new Give())
                 .build();
