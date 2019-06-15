@@ -2,9 +2,11 @@ package net.dirtcraft.plugin.slashgive.command;
 
 import com.google.gson.*;
 
+import com.google.inject.Inject;
 import net.dirtcraft.plugin.slashgive.Lang;
 import net.dirtcraft.plugin.slashgive.Permissions;
 
+import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandException;
 import org.spongepowered.api.command.CommandPermissionException;
@@ -18,6 +20,7 @@ import org.spongepowered.api.item.ItemType;
 import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.text.Text;
 
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,26 +28,22 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Give implements CommandExecutor {
+    @Inject
+    private Logger logger;
+
+    @Nonnull
     @Override
-    public CommandResult execute(CommandSource src, CommandContext args) throws CommandException {
-        Player target = args.<Player>getOne("target").get();
-        String itemName = args.<String>getOne("item").get();
+    public CommandResult execute(@Nonnull CommandSource src, CommandContext args) throws CommandException {
+        @SuppressWarnings("OptionalGetWithoutIsPresent") Player target = args.<Player>getOne("target").get();
+        @SuppressWarnings("OptionalGetWithoutIsPresent") String itemName = args.<String>getOne("item").get();
         Integer quantity = args.<Integer>getOne("quantity").orElse(1);
         Integer meta = args.<Integer>getOne("meta").orElse(0);
         String nbtData = args.<String>getOne("nbt").orElse(null);
 
-        if (src != target && !src.hasPermission(Permissions.GIVE_OTHERS)){
-            throw new CommandPermissionException(Text.of(Lang.EXCEPTION_PERMISSION_OTHERS));
-        }
-        if (quantity > 64 && !src.hasPermission(Permissions.GIVE_EXTRA)){
-            throw new CommandPermissionException(Text.of(Lang.EXCEPTION_PERMISSION_EXTRA));
-        }
-        if (nbtData != null && !src.hasPermission(Permissions.GIVE_NBT)) {
-            throw new CommandException(Text.of(Lang.EXCEPTION_PERMISSION_NBT));
-        }
-        if (!Sponge.getRegistry().getType(ItemType.class, itemName).isPresent()){
-            throw new CommandException(Text.of(Lang.EXCEPTION_ARGUMENTS_ITEM));
-        }
+        if (src != target && !src.hasPermission(Permissions.GIVE_OTHERS)) throw new CommandPermissionException(Text.of(Lang.EXCEPTION_PERMISSION_OTHERS));
+        if (quantity > 64 && !src.hasPermission(Permissions.GIVE_EXTRA)) throw new CommandPermissionException(Text.of(Lang.EXCEPTION_PERMISSION_EXTRA));
+        if (nbtData != null && !src.hasPermission(Permissions.GIVE_NBT)) throw new CommandException(Text.of(Lang.EXCEPTION_PERMISSION_NBT));
+        if (!Sponge.getRegistry().getType(ItemType.class, itemName).isPresent()) throw new CommandException(Text.of(Lang.EXCEPTION_ARGUMENTS_ITEM));
 
         DataContainer item = DataContainer.createNew();
         item.set(DataQuery.of("ItemType"),itemName);
@@ -80,6 +79,7 @@ public class Give implements CommandExecutor {
                     arrayJson.forEach((obj)->arrayList.add(parseNbt(obj.getAsJsonObject())));
                     object.set(DataQuery.of(key),arrayList);
                 } else {
+                    logger.error("Slash-give tried to give item with array-type nbt. (Not implemented)");
                     //String dataType = arrayJson.get(0).toString().toLowerCase();
                     //Todo numbered arrays
                 }
@@ -100,7 +100,6 @@ public class Give implements CommandExecutor {
                 }else {
                     object.set(DataQuery.of(key), strippedValue);
                 }
-
             }
         }
         return object;
