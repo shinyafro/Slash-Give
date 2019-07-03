@@ -27,7 +27,7 @@ public class SlashGive {
         CommandSpec give = CommandSpec.builder()
                 .permission(Permissions.GIVE_MAIN)
                 .arguments(
-                        GenericArguments.playerOrSource(Text.of("target")),
+                        GenericArguments.player(Text.of("target")),
                         GenericArguments.string(Text.of("item")),
                         GenericArguments.optional(GenericArguments.integer(Text.of("quantity"))),
                         GenericArguments.optional(GenericArguments.integer(Text.of("meta"))),

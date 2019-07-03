@@ -22,6 +22,7 @@ import org.spongepowered.api.text.Text;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -34,16 +35,20 @@ public class Give implements CommandExecutor {
     @Nonnull
     @Override
     public CommandResult execute(@Nonnull CommandSource src, CommandContext args) throws CommandException {
-        @SuppressWarnings("OptionalGetWithoutIsPresent") Player target = args.<Player>getOne("target").get();
         @SuppressWarnings("OptionalGetWithoutIsPresent") String itemName = args.<String>getOne("item").get();
+        Collection<Player> targets = args.getAll("target");
         Integer quantity = args.<Integer>getOne("quantity").orElse(1);
         Integer meta = args.<Integer>getOne("meta").orElse(0);
         String nbtData = args.<String>getOne("nbt").orElse(null);
 
-        if (src != target && !src.hasPermission(Permissions.GIVE_OTHERS)) throw new CommandPermissionException(Text.of(Lang.EXCEPTION_PERMISSION_OTHERS));
-        if (quantity > 64 && !src.hasPermission(Permissions.GIVE_EXTRA)) throw new CommandPermissionException(Text.of(Lang.EXCEPTION_PERMISSION_EXTRA));
-        if (nbtData != null && !src.hasPermission(Permissions.GIVE_NBT)) throw new CommandException(Text.of(Lang.EXCEPTION_PERMISSION_NBT));
+        if (!src.hasPermission(Permissions.GIVE_MULTIPLE) && targets.size()>1) throw new CommandPermissionException(Text.of(Lang.EXCEPTION_PERMISSION_MULTIPLE));
+        if (!src.hasPermission(Permissions.GIVE_OTHERS) && targets.size()==1 && !targets.contains(src)) throw new CommandPermissionException(Text.of(Lang.EXCEPTION_PERMISSION_OTHERS));
+        if (!src.hasPermission(Permissions.GIVE_EXTRA) && quantity > 64) throw new CommandPermissionException(Text.of(Lang.EXCEPTION_PERMISSION_EXTRA));
+        if (!src.hasPermission(Permissions.GIVE_NBT) && nbtData != null) throw new CommandPermissionException(Text.of(Lang.EXCEPTION_PERMISSION_NBT));
+
         if (!Sponge.getRegistry().getType(ItemType.class, itemName).isPresent()) throw new CommandException(Text.of(Lang.EXCEPTION_ARGUMENTS_ITEM));
+        if (targets.isEmpty() && !(src instanceof Player)) throw new CommandException(Text.of(Lang.EXCEPTION_ARGUMENTS_PLAYER));
+        if (targets.isEmpty()) targets.add((Player) src);
 
         DataContainer item = DataContainer.createNew();
         item.set(DataQuery.of("ItemType"),itemName);
@@ -58,11 +63,14 @@ public class Give implements CommandExecutor {
                 throw new CommandException(Text.of(Lang.EXCEPTION_ARGUMENTS_NBT));
             }
         }
-        target.getInventory().offer(ItemStack.builder().fromContainer(item).build());
+        for (Player player : targets) {
+            player.sendMessage(Text.of(item.toString()));
+            player.getInventory().offer(ItemStack.builder().fromContainer(item).build());
+        }
         return CommandResult.success();
     }
 
-    private DataContainer parseNbt(JsonObject jsonData){
+    private DataContainer parseNbt(JsonObject jsonData) {
         DataContainer object = DataContainer.createNew();
         for (Map.Entry<String,JsonElement> entry : jsonData.entrySet()){
             String key = entry.getKey();
@@ -79,9 +87,48 @@ public class Give implements CommandExecutor {
                     arrayJson.forEach((obj)->arrayList.add(parseNbt(obj.getAsJsonObject())));
                     object.set(DataQuery.of(key),arrayList);
                 } else {
-                    logger.error("Slash-give tried to give item with array-type nbt. (Not implemented)");
-                    //String dataType = arrayJson.get(0).toString().toLowerCase();
-                    //Todo numbered arrays
+                    CommandSource x = Sponge.getServer().getConsole();
+                    char type = arrayJson.get(0).getAsCharacter();
+                    List arrayList = null;
+                    switch (type){
+                        case 'L':
+                            arrayList = new ArrayList<Long>();
+                            for (int i = 1; i < arrayJson.size(); i++){
+                                arrayList.add(arrayJson.get(i).getAsLong());
+                            }
+                            break;
+                        case 'I':
+                            arrayList = new ArrayList<Integer>();
+                            for (int i = 1; i < arrayJson.size(); i++){
+                                arrayList.add(arrayJson.get(i).getAsInt());
+                            }
+                            break;
+                        case 'B':
+                            arrayList = new ArrayList<Byte>();
+                            for (int i = 1; i < arrayJson.size(); i++){
+                                arrayList.add(arrayJson.get(i).getAsByte());
+                            }
+                            break;
+                        case 'S':
+                            arrayList = new ArrayList<Short>();
+                            for (int i = 1; i < arrayJson.size(); i++){
+                                arrayList.add(arrayJson.get(i).getAsShort());
+                            }
+                            break;
+                        case 'F':
+                            arrayList = new ArrayList<Float>();
+                            for (int i = 1; i < arrayJson.size(); i++){
+                                arrayList.add(arrayJson.get(i).getAsFloat());
+                            }
+                            break;
+                        case 'D':
+                            arrayList = new ArrayList<Double>();
+                            for (int i = 1; i < arrayJson.size(); i++){
+                                arrayList.add(arrayJson.get(i).getAsDouble());
+                            }
+                            break;
+                    }
+                    if (arrayList != null) object.set(DataQuery.of(key),arrayList);
                 }
             } else {
                 String strippedValue = value.toString().replace("\"", "");
